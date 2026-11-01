@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "examples/reviewed_skill_agent/**"
+      - "examples/__init__.py"
       - "supabase/schema/agent_audit_events.sql"
       - "supabase/tests/agent_audit_events_rls_test.sql"
       - ".github/workflows/reviewed-skill-agent.yml"
@@ -12,6 +13,7 @@ on:
       - "feat/reviewed-skill-developer-agent"
     paths:
       - "examples/reviewed_skill_agent/**"
+      - "examples/__init__.py"
       - "supabase/schema/agent_audit_events.sql"
       - "supabase/tests/agent_audit_events_rls_test.sql"
       - ".github/workflows/reviewed-skill-agent.yml"
