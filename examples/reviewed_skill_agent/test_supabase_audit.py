@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import base64
 import json
+import base64
 import unittest
 
 import httpx
