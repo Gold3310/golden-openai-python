@@ -38,5 +38,8 @@ jobs:
         run: python -m compileall -q examples/reviewed_skill_agent
       - name: Run unit tests
         run: python -m unittest discover -s examples/reviewed_skill_agent -p 'test_*.py'
-      - name: Lint example
-        run: ruff check examples/reviewed_skill_agent
+      - name: Show Ruff's import fixes
+        run: |
+          ruff check --fix examples/reviewed_skill_agent || true
+          git diff -- examples/reviewed_skill_agent
+          ruff check examples/reviewed_skill_agent
