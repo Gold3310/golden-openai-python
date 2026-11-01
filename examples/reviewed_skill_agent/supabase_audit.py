@@ -14,7 +14,8 @@ _ALLOWED_EVENTS = {"task_started", "approval_requested", "approval_decision", "t
 _ALLOWED_STATUSES = {"started", "pending", "approved", "denied", "completed", "failed"}
 
 
-def _validate_user_access_token(token: str) -> None:
+def _precheck_user_access_token_claims(token: str) -> None:
+    """Reject obvious non-user tokens; Supabase remains responsible for signature and expiry checks."""
     parts = token.split(".")
     if len(parts) != 3:
         raise ValueError("SUPABASE_USER_ACCESS_TOKEN must be a Supabase user access JWT.")
@@ -55,7 +56,7 @@ class SupabaseAuditLogger:
             raise ValueError("SUPABASE_PUBLISHABLE_KEY must be a Supabase publishable key, not an admin/secret key.")
         if not user_access_token.strip():
             raise ValueError("An authenticated user's access token is required.")
-        _validate_user_access_token(user_access_token)
+        _precheck_user_access_token_claims(user_access_token)
         self._base_url = supabase_url.rstrip("/")
         self._publishable_key = publishable_key
         self._user_access_token = user_access_token
