@@ -24,7 +24,7 @@ def _validate_user_access_token(token: str) -> None:
         claims = json.loads(base64.urlsafe_b64decode(payload_part.encode("ascii")))
     except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
         raise ValueError("SUPABASE_USER_ACCESS_TOKEN must be a validly encoded user JWT.") from None
-    if claims.get("role") != "authenticated" or not claims.get("sub"):
+    if not isinstance(claims, dict) or claims.get("role") != "authenticated" or not claims.get("sub"):
         raise ValueError("The Supabase access token must represent an authenticated user, not an administrative role.")
 
 
