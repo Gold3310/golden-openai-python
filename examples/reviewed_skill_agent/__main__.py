@@ -42,7 +42,7 @@ def main() -> int:
                 f"approval_request_id={approval['approval_request_id']} "
                 f"server={approval['server_label']}"
             )
-        if audit is not None:
+        if audit is not None and not approvals:
             audit.log_event(args.skill, "task_completed", "completed")
         return 0
     except Exception:

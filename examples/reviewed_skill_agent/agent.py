@@ -43,7 +43,7 @@ def build_skill_context(skill_name: str) -> str:
     if skill is None:
         raise ValueError("Task is not covered by a reviewed skill.")
 
-    return "\\n".join(
+    return "\n".join(
         (
             f"Reviewed skill: {skill_name}",
             f"Description: {skill['description']}",
@@ -112,7 +112,7 @@ def run_developer_agent(
     )
     return client.responses.create(
         model=model,
-        instructions=f"{instructions}\\n\\n{skill_context}",
+        instructions=f"{instructions}\n\n{skill_context}",
         input=user_task.strip(),
         tools=[tool_config],
     )
