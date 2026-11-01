@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import base64
 import json
 import unittest
 
 import httpx
 
 from examples.reviewed_skill_agent.supabase_audit import SupabaseAuditLogger
+
+
+def _user_jwt(role: str = "authenticated") -> str:
+    claims = {"role": role, "sub": "11111111-1111-4111-8111-111111111111"}
+    payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).decode().rstrip("=")
+    return f"header.{payload}.signature"
 
 
 class SupabaseAuditLoggerTests(unittest.TestCase):
@@ -21,7 +28,7 @@ class SupabaseAuditLoggerTests(unittest.TestCase):
 
         transport = httpx.MockTransport(handler)
         with SupabaseAuditLogger(
-            "https://project.supabase.co", "sb_publishable_test", "user-jwt-test", transport=transport
+            "https://project.supabase.co", "sb_publishable_test", _user_jwt(), transport=transport
         ) as logger:
             logger.log_event("dependency_audit", "task_started", "started")
 
@@ -29,7 +36,7 @@ class SupabaseAuditLoggerTests(unittest.TestCase):
         self.assertEqual(captured["method"], "POST")
         self.assertEqual(captured["url"], "https://project.supabase.co/rest/v1/agent_audit_events")
         self.assertEqual(headers["apikey"], "sb_publishable_test")
-        self.assertEqual(headers["authorization"], "Bearer user-jwt-test")
+        self.assertEqual(headers["authorization"], f"Bearer {_user_jwt()}")
         self.assertEqual(headers["prefer"], "return=minimal")
         self.assertEqual(
             captured["body"],
@@ -43,19 +50,18 @@ class SupabaseAuditLoggerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SupabaseAuditLogger.from_env({"SUPABASE_URL": "https://project.supabase.co"})
 
-    def test_admin_keys_are_not_a_supported_argument(self) -> None:
-        with self.assertRaises(TypeError):
-            SupabaseAuditLogger(
-                "https://project.supabase.co",
-                "sb_publishable_test",
-                "user-jwt-test",
-                service_role_key="not-supported",
-            )
+    def test_administrative_jwt_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "authenticated user"):
+            SupabaseAuditLogger("https://project.supabase.co", "sb_publishable_test", _user_jwt("service_role"))
+
+    def test_admin_key_is_not_accepted_as_publishable_key(self) -> None:
+        with self.assertRaisesRegex(ValueError, "publishable key"):
+            SupabaseAuditLogger("https://project.supabase.co", "sb_secret_test", _user_jwt())
 
     def test_non_success_response_fails_without_echoing_response_body(self) -> None:
-        transport = httpx.MockTransport(lambda request: httpx.Response(403, text="sensitive server detail"))
+        transport = httpx.MockTransport(lambda _: httpx.Response(403, text="sensitive server detail"))
         with SupabaseAuditLogger(
-            "https://project.supabase.co", "sb_publishable_test", "user-jwt-test", transport=transport
+            "https://project.supabase.co", "sb_publishable_test", _user_jwt(), transport=transport
         ) as logger:
             with self.assertRaisesRegex(RuntimeError, "HTTP 403") as raised:
                 logger.log_event("dependency_audit", "task_started", "started")

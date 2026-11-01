@@ -1,11 +1,19 @@
 begin;
 
-select plan(5);
+select plan(7);
 
 select has_table('public', 'agent_audit_events', 'audit table exists');
 select ok(
     (select relrowsecurity from pg_class where oid = 'public.agent_audit_events'::regclass),
     'row level security is enabled'
+);
+select ok(
+    not has_table_privilege('anon', 'public.agent_audit_events', 'INSERT'),
+    'anonymous users cannot insert audit events'
+);
+select ok(
+    not has_table_privilege('authenticated', 'public.agent_audit_events', 'SELECT'),
+    'authenticated users cannot read audit events through the Data API'
 );
 
 set local role authenticated;

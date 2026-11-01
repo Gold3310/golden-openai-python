@@ -3,10 +3,10 @@
 
 create table if not exists public.agent_audit_events (
     event_id uuid primary key default gen_random_uuid(),
-    user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+    user_id uuid not null default auth.uid(),
     skill_name text not null check (skill_name in ('dependency_audit', 'verified_operation')),
-    event_type text not null check (event_type in ('task_started', 'approval_decision', 'task_completed', 'task_failed')),
-    status text not null check (status in ('started', 'approved', 'denied', 'completed', 'failed')),
+    event_type text not null check (event_type in ('task_started', 'approval_requested', 'approval_decision', 'task_completed', 'task_failed')),
+    status text not null check (status in ('started', 'pending', 'approved', 'denied', 'completed', 'failed')),
     created_at timestamptz not null default now()
 );
 

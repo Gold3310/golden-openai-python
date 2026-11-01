@@ -5,11 +5,11 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from examples.reviewed_skill_agent.agent import (
-    build_mcp_tool_config,
-    build_skill_context,
-    continue_after_approval,
     pending_approvals,
+    build_skill_context,
     run_developer_agent,
+    build_mcp_tool_config,
+    continue_after_approval,
 )
 
 

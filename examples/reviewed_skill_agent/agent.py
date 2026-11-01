@@ -1,8 +1,6 @@
 from __future__ import annotations
-
 from typing import Any
 from urllib.parse import urlsplit
-
 
 REVIEWED_SKILLS: dict[str, dict[str, Any]] = {
     "dependency_audit": {
@@ -43,7 +41,7 @@ def build_skill_context(skill_name: str) -> str:
     if skill is None:
         raise ValueError("Task is not covered by a reviewed skill.")
 
-    return "\\n".join(
+    return "\n".join(
         (
             f"Reviewed skill: {skill_name}",
             f"Description: {skill['description']}",
@@ -112,7 +110,7 @@ def run_developer_agent(
     )
     return client.responses.create(
         model=model,
-        instructions=f"{instructions}\\n\\n{skill_context}",
+        instructions=f"{instructions}\n\n{skill_context}",
         input=user_task.strip(),
         tools=[tool_config],
     )
@@ -126,6 +124,7 @@ def continue_after_approval(
     approval_request_id: str,
     approved: bool,
     model: str = "gpt-6-astra",
+    audit_logger: Any | None = None,
 ) -> Any:
     if not previous_response_id.strip() or not approval_request_id.strip():
         raise ValueError("Both response IDs are required to resolve an MCP approval request.")
@@ -133,6 +132,12 @@ def continue_after_approval(
         raise ValueError("approved must be an explicit boolean decision.")
 
     tool_config = build_mcp_tool_config(skill_name, server_url)
+    if audit_logger is not None:
+        audit_logger.log_event(
+            skill_name,
+            "approval_decision",
+            "approved" if approved else "denied",
+        )
     return client.responses.create(
         model=model,
         tools=[tool_config],

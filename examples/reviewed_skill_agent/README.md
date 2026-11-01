@@ -22,7 +22,7 @@ Use environment variables; do not commit a populated environment file:
 - `MCP_SERVER_URL`: HTTPS URL of the reviewed MCP server. The endpoint must expose the tool names above.
 - `SUPABASE_URL`: Supabase project URL (optional; configure all three Supabase values together).
 - `SUPABASE_PUBLISHABLE_KEY`: Supabase publishable key, not a secret key.
-- `SUPABASE_USER_ACCESS_TOKEN`: access token for the signed-in user. Never use a service-role or secret key here.
+- `SUPABASE_USER_ACCESS_TOKEN`: current access JWT for the signed-in user. The client rejects tokens whose unverified claims do not identify the `authenticated` role; Supabase still validates the token signature and expiry. Never use a service-role or secret key here.
 
 Run from the repository root:
 
@@ -30,11 +30,11 @@ Run from the repository root:
 python -m examples.reviewed_skill_agent --skill dependency_audit --task "Check the repository for exposure to the supplied advisory. Stay read-only."
 ```
 
-The CLI prints response text and the tool name plus approval request ID for pending approvals. It intentionally does not print tool arguments. A calling application should present the full, carefully redacted arguments to an authorized human reviewer before invoking `continue_after_approval(..., approved=True)`. Denials use `approved=False`.
+The CLI prints response text and the tool name plus approval request ID for pending approvals. It intentionally does not print tool arguments. A calling application should present the full, carefully redacted arguments to an authorized human reviewer before invoking `continue_after_approval(..., approved=True)`. Denials use `approved=False`. The helper can write the decision to the audit table when passed the configured audit logger.
 
 ## Supabase audit persistence
 
-The optional logger writes only `skill_name`, `event_type`, and `status`. It does not persist task text, model output, tool arguments, tokens, or credentials. Requests use the publishable key in `apikey` and the user's access token in `Authorization`; RLS remains the authorization boundary. The client does not accept or use an administrative key.
+The optional logger writes only `skill_name`, `event_type`, and `status`. It does not persist task text, model output, tool arguments, tokens, or credentials. Requests use the publishable key in `apikey` and the user's access token in `Authorization`; RLS remains the authorization boundary. The client rejects administrative-role JWTs and does not accept an administrative key.
 
 1. Review `supabase/schema/agent_audit_events.sql` and apply it only to a development/test Supabase project.
 2. Expose `agent_audit_events` in the project's Data API settings. New public tables are not automatically exposed by default on current Supabase projects.

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import argparse
 import os
+import argparse
 
 from openai import OpenAI
 
@@ -43,7 +43,10 @@ def main() -> int:
                 f"server={approval['server_label']}"
             )
         if audit is not None:
-            audit.log_event(args.skill, "task_completed", "completed")
+            if approvals:
+                audit.log_event(args.skill, "approval_requested", "pending")
+            else:
+                audit.log_event(args.skill, "task_completed", "completed")
         return 0
     except Exception:
         if audit is not None:
