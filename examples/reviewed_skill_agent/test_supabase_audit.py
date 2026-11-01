@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import base64
 import unittest
+from typing import Any
 
 import httpx
 
@@ -17,7 +18,7 @@ def _user_jwt(role: str = "authenticated") -> str:
 
 class SupabaseAuditLoggerTests(unittest.TestCase):
     def test_insert_uses_user_jwt_publishable_key_and_minimal_payload(self) -> None:
-        captured: dict[str, object] = {}
+        captured: dict[str, Any] = {}
 
         def handler(request: httpx.Request) -> httpx.Response:
             captured["method"] = request.method

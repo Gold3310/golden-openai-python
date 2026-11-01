@@ -34,7 +34,7 @@ The CLI prints response text and the tool name plus approval request ID for pend
 
 ## Supabase audit persistence
 
-The optional logger writes only `skill_name`, `event_type`, and `status`. It does not persist task text, model output, tool arguments, tokens, or credentials. Requests use the publishable key in `apikey` and the user's access token in `Authorization`; RLS remains the authorization boundary. The client rejects administrative-role JWTs and does not accept an administrative key.
+The optional logger writes only `skill_name`, `event_type`, and `status`. These user-writable rows are operational telemetry, not a tamper-proof compliance audit trail. It does not persist task text, model output, tool arguments, tokens, or credentials. Requests use the publishable key in `apikey` and the user's access token in `Authorization`; RLS remains the authorization boundary. The client rejects administrative-role JWTs and does not accept an administrative key.
 
 1. Review `supabase/schema/agent_audit_events.sql` and apply it only to a development/test Supabase project.
 2. Expose `agent_audit_events` in the project's Data API settings. New public tables are not automatically exposed by default on current Supabase projects.

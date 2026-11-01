@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import json
 import base64
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlsplit
 
 import httpx
@@ -21,10 +21,13 @@ def _validate_user_access_token(token: str) -> None:
     try:
         payload_part = parts[1]
         payload_part += "=" * (-len(payload_part) % 4)
-        claims = json.loads(base64.urlsafe_b64decode(payload_part.encode("ascii")))
+        decoded_claims: object = json.loads(base64.urlsafe_b64decode(payload_part.encode("ascii")))
     except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
         raise ValueError("SUPABASE_USER_ACCESS_TOKEN must be a validly encoded user JWT.") from None
-    if not isinstance(claims, dict) or claims.get("role") != "authenticated" or not claims.get("sub"):
+    if not isinstance(decoded_claims, dict):
+        raise ValueError("The Supabase access token must contain a JSON claims object.")
+    claims = cast(dict[str, object], decoded_claims)
+    if claims.get("role") != "authenticated" or not claims.get("sub"):
         raise ValueError("The Supabase access token must represent an authenticated user, not an administrative role.")
 
 
@@ -67,7 +70,7 @@ class SupabaseAuditLogger:
             return None
         if not all(values):
             raise ValueError("Configure all three Supabase audit environment variables or leave all unset.")
-        return cls(*values)
+        return cls(values[0], values[1], values[2])
 
     def log_event(self, skill_name: str, event_type: str, status: str) -> None:
         if skill_name not in REVIEWED_SKILLS:

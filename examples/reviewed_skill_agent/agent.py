@@ -96,7 +96,7 @@ def run_developer_agent(
     server_url: str,
     model: str = "gpt-6-astra",
 ) -> Any:
-    if not isinstance(user_task, str) or not user_task.strip():
+    if not user_task.strip():
         raise ValueError("user_task must be a non-empty string.")
     if len(user_task) > MAX_TASK_LENGTH:
         raise ValueError(f"user_task exceeds the {MAX_TASK_LENGTH}-character limit.")
@@ -129,9 +129,6 @@ def continue_after_approval(
 ) -> Any:
     if not previous_response_id.strip() or not approval_request_id.strip():
         raise ValueError("Both response IDs are required to resolve an MCP approval request.")
-    if not isinstance(approved, bool):
-        raise ValueError("approved must be an explicit boolean decision.")
-
     tool_config = build_mcp_tool_config(skill_name, server_url)
     if audit_logger is not None:
         audit_logger.log_event(
