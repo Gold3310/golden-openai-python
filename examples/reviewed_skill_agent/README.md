@@ -30,13 +30,13 @@ Run from the repository root:
 python -m examples.reviewed_skill_agent --skill dependency_audit --task "Check the repository for exposure to the supplied advisory. Stay read-only."
 ```
 
-The CLI prints response text and the tool name plus approval request ID for pending approvals. It intentionally does not print tool arguments. A calling application should present the full, carefully redacted arguments to an authorized human reviewer before invoking `continue_after_approval(..., approved=True)`. Denials use `approved=False`. The helper can write the decision to the audit table when passed the configured audit logger.
+The CLI prints response text and the tool name plus approval request ID for pending approvals. It intentionally does not print tool arguments. **This CLI does not approve requests.** A production host application must retrieve the pending request from the trusted response object, render its complete arguments in a secure review surface with secret redaction, bind the reviewer decision to that exact request, and only then call `continue_after_approval(...)` with the corresponding record from `pending_approvals(response)`. The helper rejects approval records for tools outside the selected skill's approval-required list and for unexpected server labels. Denials use `approved=False`. The helper writes the decision to the audit table only after the Responses API accepts the decision.
 
 ## Supabase audit persistence
 
 The optional logger writes only `skill_name`, `event_type`, and `status`. These user-writable rows are operational telemetry, not a tamper-proof compliance audit trail. It does not persist task text, model output, tool arguments, tokens, or credentials. Requests use the publishable key in `apikey` and the user's access token in `Authorization`; RLS remains the authorization boundary. The client rejects administrative-role JWTs and does not accept an administrative key.
 
-1. Review `supabase/schema/agent_audit_events.sql` and apply it only to a development/test Supabase project.
+1. Review `supabase/migrations/20261031000000_agent_audit_events.sql` (also mirrored at `supabase/schema/agent_audit_events.sql`) and apply it only to a development/test Supabase project.
 2. Expose `agent_audit_events` in the project's Data API settings. New public tables are not automatically exposed by default on current Supabase projects.
 3. The table grants authenticated users INSERT only. RLS sets ownership to `auth.uid()` and rejects inserts for another user. No SELECT, UPDATE, or DELETE grant is provided to client roles.
 4. Run the pgTAP policy test in `supabase/tests/agent_audit_events_rls_test.sql` against a disposable local Supabase database.
@@ -51,8 +51,8 @@ The Python tests use mocked HTTP transport and a mocked OpenAI client; they do n
 python -m unittest discover -s examples/reviewed_skill_agent -p 'test_*.py'
 ```
 
-The SQL pgTAP test is separate and requires a local Supabase database with pgTAP enabled. CI runs the Python unit tests and does not require secrets.
+The SQL pgTAP test runs against the isolated local Supabase stack configured in `supabase/config.toml`. CI applies the migration and runs the RLS test; it does not require hosted credentials or modify the connected project.
 
 ## Operational limitations
 
-This is a reference implementation, not a hosted MCP server. Configure a trusted MCP endpoint that implements the named tools and enforces the same policies server-side. The example does not execute local shell commands or modify repositories itself. OpenAI model/API availability and account permissions are determined by the configured API account.
+This is a reference implementation, not a hosted MCP server. Configure a trusted MCP endpoint that implements the named tools and enforces the same policies server-side. The example does not execute local shell commands or modify repositories itself. The named MCP tools are supplied by the separately operated MCP server; this repository does not implement that server. OpenAI model/API availability and account permissions are determined by the configured API account. The CI workflow validates the Python example and local database policies, not connectivity to a live OpenAI or MCP endpoint.
