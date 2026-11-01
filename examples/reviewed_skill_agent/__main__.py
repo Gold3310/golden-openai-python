@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import os
 import argparse
+import os
 
 from openai import OpenAI
 
@@ -45,9 +45,11 @@ def main() -> int:
         if audit is not None:
             if approvals:
                 audit.log_event(args.skill, "approval_requested", "pending")
-            else:
+            elif getattr(response, "status", "completed") == "completed":
                 audit.log_event(args.skill, "task_completed", "completed")
-        return 0
+            else:
+                audit.log_event(args.skill, "task_failed", "failed")
+        return 0 if approvals or getattr(response, "status", "completed") == "completed" else 1
     except Exception:
         if audit is not None:
             audit.log_event(args.skill, "task_failed", "failed")
