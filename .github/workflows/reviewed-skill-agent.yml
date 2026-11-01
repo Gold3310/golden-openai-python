@@ -51,8 +51,10 @@ jobs:
           version: latest
       - name: Start isolated local Supabase stack
         run: supabase start
-      - name: Apply migration and run pgTAP policies
-        run: supabase test db
+      - name: Apply migrations to the local database
+        run: supabase db reset --local
+      - name: Run pgTAP RLS policies
+        run: supabase test db --local
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop --no-backup
