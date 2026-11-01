@@ -5,17 +5,15 @@ on:
     paths:
       - "examples/reviewed_skill_agent/**"
       - "examples/__init__.py"
-      - "supabase/schema/agent_audit_events.sql"
-      - "supabase/tests/agent_audit_events_rls_test.sql"
+      - "supabase/**"
       - ".github/workflows/reviewed-skill-agent.yml"
   push:
     branches:
-      - "feat/reviewed-skill-developer-agent"
+      - "feat/reviewed-skill-agent-*"
     paths:
       - "examples/reviewed_skill_agent/**"
       - "examples/__init__.py"
-      - "supabase/schema/agent_audit_events.sql"
-      - "supabase/tests/agent_audit_events_rls_test.sql"
+      - "supabase/**"
       - ".github/workflows/reviewed-skill-agent.yml"
 
 permissions:
@@ -42,3 +40,19 @@ jobs:
         run: python -m unittest discover -s examples/reviewed_skill_agent -p 'test_*.py'
       - name: Lint example
         run: ruff check examples/reviewed_skill_agent
+
+  supabase-rls-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start isolated local Supabase stack
+        run: supabase start
+      - name: Apply migration and run pgTAP policies
+        run: supabase test db
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop --no-backup
