@@ -35,6 +35,7 @@ REVIEWED_SKILLS: dict[str, dict[str, Any]] = {
 }
 
 MAX_TASK_LENGTH = 8_000
+MCP_SERVER_LABEL = "reviewed_engineering_tools"
 
 
 def build_skill_context(skill_name: str) -> str:
@@ -55,6 +56,8 @@ def build_skill_context(skill_name: str) -> str:
 
 
 def _validate_server_url(server_url: str) -> str:
+    if not isinstance(server_url, str) or not server_url.strip():
+        raise ValueError("MCP_SERVER_URL must be a non-empty HTTPS URL.")
     parsed = urlsplit(server_url)
     if (
         parsed.scheme != "https"
@@ -81,7 +84,7 @@ def build_mcp_tool_config(skill_name: str, server_url: str) -> dict[str, Any]:
 
     return {
         "type": "mcp",
-        "server_label": "reviewed_engineering_tools",
+        "server_label": MCP_SERVER_LABEL,
         "server_description": skill["description"],
         "server_url": _validate_server_url(server_url),
         "allowed_tools": list(skill["allowed_tools"]),
@@ -96,7 +99,7 @@ def run_developer_agent(
     server_url: str,
     model: str = "gpt-6-astra",
 ) -> Any:
-    if not user_task.strip():
+    if not isinstance(user_task, str) or not user_task.strip():
         raise ValueError("user_task must be a non-empty string.")
     if len(user_task) > MAX_TASK_LENGTH:
         raise ValueError(f"user_task exceeds the {MAX_TASK_LENGTH}-character limit.")
@@ -117,26 +120,62 @@ def run_developer_agent(
     )
 
 
+def pending_approvals(response: Any) -> list[dict[str, str]]:
+    """Return minimal approval metadata; never expose raw MCP arguments or secrets."""
+    pending: list[dict[str, str]] = []
+    for item in getattr(response, "output", ()) or ():
+        if getattr(item, "type", None) != "mcp_approval_request":
+            continue
+        request_id = str(getattr(item, "id", "")).strip()
+        tool_name = str(getattr(item, "name", "")).strip()
+        server_label = str(getattr(item, "server_label", "")).strip()
+        if request_id and tool_name and server_label:
+            pending.append(
+                {
+                    "approval_request_id": request_id,
+                    "tool_name": tool_name,
+                    "server_label": server_label,
+                }
+            )
+    return pending
+
+
 def continue_after_approval(
     client: Any,
     skill_name: str,
     server_url: str,
     previous_response_id: str,
-    approval_request_id: str,
+    approval: dict[str, str],
     approved: bool,
     model: str = "gpt-6-astra",
     audit_logger: Any | None = None,
 ) -> Any:
-    if not previous_response_id.strip() or not approval_request_id.strip():
-        raise ValueError("Both response IDs are required to resolve an MCP approval request.")
+    """Resolve one approval returned by pending_approvals after human review.
+
+    The caller must display the actual MCP arguments through a trusted, redacting
+    review surface before passing approved=True. This helper deliberately does
+    not return or log those arguments.
+    """
+    if not isinstance(previous_response_id, str) or not previous_response_id.strip():
+        raise ValueError("A previous response ID is required to resolve an MCP approval request.")
+    if not isinstance(approved, bool):
+        raise ValueError("approved must be an explicit boolean decision.")
+    if not isinstance(approval, dict):
+        raise ValueError("Pass one approval record returned by pending_approvals().")
+
+    approval_request_id = approval.get("approval_request_id", "").strip()
+    tool_name = approval.get("tool_name", "").strip()
+    server_label = approval.get("server_label", "").strip()
+    skill = REVIEWED_SKILLS.get(skill_name)
+    if skill is None:
+        raise ValueError("Task is not covered by a reviewed skill.")
+    if not approval_request_id or not tool_name or server_label != MCP_SERVER_LABEL:
+        raise ValueError("The approval record is incomplete or belongs to an unrecognized MCP server.")
+    if tool_name not in skill["approval_required"]:
+        raise ValueError("This tool is not approval-gated by the selected reviewed skill.")
+
     tool_config = build_mcp_tool_config(skill_name, server_url)
-    if audit_logger is not None:
-        audit_logger.log_event(
-            skill_name,
-            "approval_decision",
-            "approved" if approved else "denied",
-        )
-    return client.responses.create(
+    response = client.responses.create(
         model=model,
         tools=[tool_config],
         previous_response_id=previous_response_id,
@@ -148,18 +187,10 @@ def continue_after_approval(
             }
         ],
     )
-
-
-def pending_approvals(response: Any) -> list[dict[str, str]]:
-    """Return approval identifiers and tool names, excluding raw tool arguments."""
-    pending: list[dict[str, str]] = []
-    for item in getattr(response, "output", ()) or ():
-        if getattr(item, "type", None) == "mcp_approval_request":
-            pending.append(
-                {
-                    "approval_request_id": str(getattr(item, "id", "")),
-                    "tool_name": str(getattr(item, "name", "")),
-                    "server_label": str(getattr(item, "server_label", "")),
-                }
-            )
-    return pending
+    if audit_logger is not None:
+        audit_logger.log_event(
+            skill_name,
+            "approval_decision",
+            "approved" if approved else "denied",
+        )
+    return response
